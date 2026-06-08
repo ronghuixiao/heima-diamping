@@ -8,9 +8,11 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,8 @@ import java.time.LocalDateTime;
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
     @Resource
     private RedisIdWorker redisIdWorker;
     @Resource
@@ -56,11 +60,25 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
 
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
+        // 创建锁对象
+        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+
+        // 获取锁
+        boolean isLock = lock.tryLock(1200);
+        // 获取成功吗
+        if (!isLock){
+            // 失败，返回失败or重试。这里根据业务返回失败
+            return Result.fail("一人一单");
+        }
+
+        try {
             // 加个intern，才能在值一样时候锁一样。不然即使userid一样，tostring之后也不一样
             // 获取代理对象（事务） 事务提交才释放锁
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
             return proxy.createVoucherOrder(voucherId);
+        } finally {
+            // 释放
+            lock.unlock();
         }
     }
     @Transactional
