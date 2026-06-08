@@ -1281,4 +1281,13 @@ CREATE TABLE `tb_voucher_order`  (
 -- Records of tb_voucher_order
 -- ----------------------------
 
+-- ----------------------------
+-- 新增100元秒杀代金券
+-- ----------------------------
+INSERT INTO `tb_voucher` (`shop_id`, `title`, `sub_title`, `rules`, `pay_value`, `actual_value`, `type`, `status`, `create_time`, `update_time`)
+VALUES (1, '100元代金券', '周一至周五均可使用', '全场通用\\n无需预约\\n可无限叠加\\不兑现、不找零\\n仅限堂食', 8000, 10000, 1, 1, NOW(), NOW());
+
+INSERT INTO `tb_seckill_voucher` (`voucher_id`, `stock`, `begin_time`, `end_time`, `create_time`, `update_time`)
+VALUES (LAST_INSERT_ID(), 100, '2022-08-09 10:25:01', '2030-08-10 10:25:01', NOW(), NOW());
+
 SET FOREIGN_KEY_CHECKS = 1;
