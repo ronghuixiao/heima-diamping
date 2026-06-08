@@ -5,6 +5,7 @@ import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.CacheClient;
+import com.hmdp.utils.RedisConstants;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,25 +31,26 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    // 工具类注解
     @Resource
     private CacheClient cacheClient;
 
     @Override
     public Result quryById(Long id) {
-        // 调用解决缓存穿透的方法
-//        Shop shop = cacheClient.handleCachePenetration(CACHE_SHOP_KEY, id, Shop.class,
-//                this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
-//        if (Objects.isNull(shop)){
-//            return Result.fail("店铺不存在");
-//        }
+        // 缓存穿透
+        // Shop shop = cacheClient.queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, id2 -> getById(id2));
+        //Shop shop = cacheClient
+        //        .queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
 
-        // 调用解决缓存击穿的方法
-        Shop shop = cacheClient.handleCacheBreakdown(CACHE_SHOP_KEY, id, Shop.class,
-                this::getById, CACHE_SHOP_TTL, TimeUnit.SECONDS);
-        if (Objects.isNull(shop)) {
+        //击穿
+        // 测试时间可以改短点，20L
+        // 在测试里提前把数据存进去
+        Shop shop = cacheClient.
+                queryWithLogicalExpire(CACHE_SHOP_KEY,id,Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
+
+        if (shop == null){
             return Result.fail("店铺不存在");
         }
-
         return Result.ok(shop);
     }
 
